@@ -21,19 +21,20 @@ class Leaf:
         self.prediction = value
 
     def __str__(self) -> str:
-        return f"Leaf: {self.prediction}"
+        return f"Leaf: {self.prediction:.3f}"
 
     def predict(self, X):
         return self.prediction
 
 
 class Decision:
+    """implement the decision process (boolean only)"""
     def __init__(self, feature, threshold):
         self.feature = feature
         self.threshold = threshold
     
     def __str__(self) -> str:
-        return f"{self.feature} < {self.threshold} ?"
+        return f"{self.feature} < {self.threshold:.3f} ?"
     
     def split(self, X):
         X_feat = X[:,self.feature]
@@ -60,6 +61,7 @@ class DecisionTree:
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
+
     def __str__(self) -> str:
         if self.root == None:
             return "Uninitialized DecisionTreeClassifier"
@@ -82,15 +84,15 @@ class DecisionTree:
 
     def fit_(self, X, y,depth=0):
         if self.max_depth !=None:
-            if depth==self.max_depth:
+            if depth==self.max_depth: # We are at max depth, create a leaf
                 value = self.get_output_value(y)
                 return Leaf(value) 
-        if X.shape[0]<self.min_samples_split:
+        if X.shape[0]<self.min_samples_split: # Too few sample to split, create a leaf
            value = self.get_output_value(y)
            return Leaf(value) 
         
         decision, impurity_improvement = self.find_best_split(X,y)
-        if impurity_improvement == 0.0:
+        if impurity_improvement == 0.0: # No good split possible within our parameters, create a leaf
             value = self.get_output_value(y)
             return Leaf(value)
         
@@ -108,8 +110,10 @@ class DecisionTree:
         best_threshold = None
         num_samples = X.shape[0]
         for feature in range(self.num_features):
-            sorted_values = np.sort(np.unique(X[:,feature]))
+            sorted_values = np.sort(np.unique(X[:,feature])) # get all the unique values, we split in between them
             for split_index in range(sorted_values.shape[0]-1):
+
+                # pick the threshold to be halfway between the two values
                 threshold_candidate = (sorted_values[split_index] + sorted_values[split_index+1])/2
                 below_threshold = X[:,feature] < threshold_candidate
                 if below_threshold.sum() < self.min_samples_leaf or num_samples - below_threshold.sum() < self.min_samples_leaf:
@@ -141,14 +145,13 @@ class DecisionTree:
 
 
     def predict(self,X):
-        # not the most efficienti for large predictions, 
-        # could pass down the y_pred along with a list of indices to be filled up
         y_pred = np.empty((X.shape[0]))
         for x in range(X.shape[0]):
             y_pred[x] = self.root.predict(X[x,:])
         return y_pred
 
     def get_output_value(self, y):
+        """returns the value that is returned by a leaf with samples y"""
         raise NotImplementedError("This is an abstract decision tree, use DecisionTreeClassifier or DecisionTreeRegressor")
         
     
@@ -165,14 +168,14 @@ class DecisionTreeClassifier(DecisionTree):
             return 1 - ((counts / y.shape[0])**2).sum()
 
         if self.criterion == 'entropy':
-            # count is never zero, np unique prunes classes with no samples
+            # counts is never zero, np unique prunes classes with no samples
             _, counts = np.unique(y, return_counts = True)
             ps = (counts / y.shape[0])
             log_ps = np.log2(ps)
             return -(ps*log_ps).sum()
 
     def get_output_value(self, y):
-        # for decision Tree, we give (one of) the most frequent value
+        # for decision Tree, we give the (first) most frequent value
         unique, counts = np.unique(y, return_counts = True)
         max_count_value = unique[counts == counts.max()][0]
         return max_count_value
@@ -190,17 +193,4 @@ class DecisionTreeRegressor(DecisionTree):
     def get_output_value(self, y):
         # for regression, we return the mean value
         return y.mean()
-        
-
-if __name__=="__main__":
-        X = np.random.random((10,4))
-        y = np.random.randint(low=0,high=3, size=(10))
-
-        dtc = DecisionTreeClassifier()
-        dtc.fit(X, y)
-        y_pred = dtc.predict(X)
-        print(y_pred, y, (y_pred==y).sum()/y.shape[0] )
-
-        print(dtc)
-
 
